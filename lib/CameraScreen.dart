@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:video_recording_app/CameraView.dart';
@@ -24,6 +23,8 @@ class _CameraScreenState extends State<CameraScreen> {
   double transform = 0;
   Timer timer;
 
+  int maxLength = 15;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +36,7 @@ class _CameraScreenState extends State<CameraScreen> {
   void dispose() {
     super.dispose();
     _cameraController.dispose();
+    timer?.cancel();
   }
 
   @override
@@ -64,7 +66,9 @@ class _CameraScreenState extends State<CameraScreen> {
               width: MediaQuery.of(context).size.width,
               child: Column(
                 children: [
-                  Row(
+                  if(timer != null && timer.isActive)
+                 Container(color: Colors.red, child: Text(timer.tick<10 ? '0'+timer.tick.toString() : timer.tick)
+                 ), Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -85,22 +89,37 @@ class _CameraScreenState extends State<CameraScreen> {
                           }),
                       GestureDetector(
                         onLongPress: () async {
-                          await _cameraController.startVideoRecording();
-                        // timer =  Timer.periodic(Duration(seconds: 1), (t) {
-                        //   if(t.tick <= 5){
-                        //     _cameraController.stopVideoRecording();
-                        //     timer.cancel();
-                        //
-                        //   }
-                        // });
-                          setState(() {
+                          await _cameraController.startVideoRecording().then((value)
+                          {
                             isRecoring = true;
+                            timer = Timer.periodic(Duration(seconds: 1), (t) async {
+                              print('time elapsed: ${t.tick}');
+                              setState((){});
+                              if(t.tick == maxLength && isRecoring && t.isActive){
+                              print('Stopping Now...................................................................');
+                              t.cancel();
+                              XFile videopath =
+                              await _cameraController.stopVideoRecording();
+                              setState(() {
+                                isRecoring = false;
+                              });
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (builder) => VideoViewPage(
+                                        path: videopath.path,
+                                      )));
+                              }
+                            });
+                          });
+                          setState(() {
                           });
                         },
                         onLongPressUp: () async {
                           XFile videopath =
                               await _cameraController.stopVideoRecording();
                           setState(() {
+                            timer?.cancel();
                             isRecoring = false;
                           });
                           Navigator.push(
